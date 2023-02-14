@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\4 - Domain\ExtratorDados.Domain\ExtratorDados.Domain.csproj" />
+    <ProjectReference Include="..\..\5 - CrossCutting\Read\ExtratorDados.CrossCutting.Read.PDF\ExtratorDados.CrossCutting.Read.PDF.csproj" />
+    <ProjectReference Include="..\..\5 - CrossCutting\Read\ExtratorDados.CrossCutting.Read.TXT\ExtratorDados.CrossCutting.Read.TXT.csproj" />
+    <ProjectReference Include="..\..\5 - CrossCutting\Write\CSV\ExtratorDados.CrossCutting.Write.CSV\ExtratorDados.CrossCutting.Write.CSV.csproj" />
+    <ProjectReference Include="..\..\5 - CrossCutting\Write\Excel\ExtratorDados.CrossCutting.Write.Excel\ExtratorDados.CrossCutting.Write.Excel.csproj" />
+  </ItemGroup>
+
+</Project>

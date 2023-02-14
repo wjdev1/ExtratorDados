@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="iTextSharp" Version="5.5.13.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\4 - Domain\ExtratorDados.Domain\ExtratorDados.Domain.csproj" />
+    <ProjectReference Include="..\..\Dados\ExtratorDados.CrossCutting.Dados\ExtratorDados.CrossCutting.Dados.csproj" />
+    <ProjectReference Include="..\..\Write\ExtratorDados.CrossCutting.Write.TXT\ExtratorDados.CrossCutting.Write.TXT.csproj" />
+  </ItemGroup>
+
+</Project>
