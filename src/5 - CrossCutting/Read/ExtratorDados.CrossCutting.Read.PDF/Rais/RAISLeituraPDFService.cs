@@ -1,12 +1,13 @@
 ﻿using ExtratorDados.CrossCutting.Read.PDF.Services;
 using ExtratorDados.Domain.Rais.Entities;
-using iTextSharp.text.pdf.parser;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+using static iTextSharp.text.pdf.events.IndexEvents;
 
 namespace ExtratorDados.CrossCutting.Read.PDF.Rais
 {
@@ -37,13 +38,7 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
 
         public void ManipularDadosRAIS(StringBuilder builder)
         {
-            var ano = 0;
-            var nome = string.Empty;
-            var pis = string.Empty;
-            var cpf = string.Empty;
-            var dataAdmissao = DateTime.MinValue;
-            DateTime? dataDeslig = null;
-            int? codDeslig = null;
+            var ano = 0;            
 
             var anoRgx = System.Text.RegularExpressions.Regex.Match(builder.ToString(), "(?i)ESTABELECIMENTO\\s(?<anoRais>\\d{4})");
             if (anoRgx.Success) ano = int.Parse(anoRgx.Groups["anoRais"].Value);
@@ -52,6 +47,13 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
 
             for (int texto = 1; texto < trecho.Length; texto++)
             {
+                var nome = string.Empty;
+                var pis = string.Empty;
+                var cpf = string.Empty;
+                var dataAdmissao = DateTime.MinValue;
+                DateTime? dataDeslig = null;
+                int? codDeslig = null;
+
                 var nomeRgx = System.Text.RegularExpressions.Regex.Match(trecho[texto].Trim(), @"(?i)PIS.\w*.*NOME.(?<nome>(\s?)\w.*.)");
                 var pisRgx = System.Text.RegularExpressions.Regex.Match(trecho[texto], "(?i)PIS.(\\s)?(?<pis>\\w.*[0-9])");
                 var cpfRgx = System.Text.RegularExpressions.Regex.Match(trecho[texto], "(?i)CPF.(\\s)?(?<cpf>\\d{3}\\.\\d{3}\\.\\d{3}\\-\\d{2})");
@@ -73,6 +75,7 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
             var ano = 0;
             string pis = string.Empty;
             string nome = string.Empty;
+            string dtAdmissao = string.Empty;
             var anoRgx = System.Text.RegularExpressions.Regex.Match(texto, @"(?i)Ano Base.(\s?)(?<ano>\d{4})");
             if (anoRgx.Success) ano = int.Parse(anoRgx.Groups["ano"].Value);
 
@@ -88,15 +91,24 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                     var trechoSplit = textoSplit[linha].Split(" ");
                     pis = trechoSplit[0];
                     nome = textoSplit[linha].Replace(trechoSplit[0], "").Trim();
+                    linha += 2;
+                    dtAdmissao = textoSplit[linha].Trim();
                 }
 
                 var colaborador = Colaboradores
-                    .Where(col => col.PIS == pis && col.Ano == ano)
+                    .Where(col => col.PIS == pis && col.Ano == ano && col.DataAdmissao == DateTime.Parse(dtAdmissao))
                     .FirstOrDefault();
 
                 if (colaborador != null)
                 {
-                    var isTrechoRemuneracao = textoSplit[linha].Contains(@"Admissão de empregado");
+                    var isTrechoRemuneracao = textoSplit[linha].Contains(@"Admissão de empregado") ||
+                                              textoSplit[linha].Contains(@"Transferência de empregado oriundo");
+
+                    if (!isTrechoRemuneracao && textoSplit[linha].Contains(@"empregado") && !textoSplit[linha].Contains(@"empregador") &&
+                        !textoSplit[linha].Contains(@"31 - Transferência de empregado entre"))
+                    {
+
+                    }
 
                     if (isTrechoRemuneracao)
                     {
@@ -108,7 +120,8 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                                 {
                                     CPFColaborador = colaborador.CPF,
                                     ValorPagamento = decimal.Parse(textoSplit[linha]),
-                                    DataPagamento = new DateTime(ano, mes, 1)
+                                    DataPagamento = new DateTime(ano, mes, 1),
+                                    DataAdmissao = colaborador.DataAdmissao
                                 });
 
                             linha++;
@@ -119,7 +132,6 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                 }
             }
         }
-
         public void ManipularDadosRAISDecimoTerceiroEAviso(string texto)
         {
             decimal avisoPrevio = 0;
@@ -255,14 +267,19 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
             }
             
         }
-
-        public void ManipularCompNaoLocalizadas(StringBuilder builder)
+        public void ManipularCompNaoLocalizadas(string builder, FileInfo file)
         {
-            string nome = string.Empty;
+            bool pularLinha = true;
 
-            var texto = builder.ToString();
+            var textoSplitadoPorLinha = builder.Split('\n').Select(s => s).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
 
-            var textoSplitadoPorLinha = texto.Split('\n').Select(s => s).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+            var _repositoryArquivo = new Dados.RAIS.RAISRepository<Arquivo>();
+            _repositoryArquivo.Add(new Arquivo { Nome = file.Name, Texto = string.Join(';',textoSplitadoPorLinha) });
+
+            if (file.Name.EndsWith("751.pdf"))
+            {
+
+            }
 
             //Trecho Extrato FGTS
             for (int linha = 0; linha < textoSplitadoPorLinha.Count(); linha++)
@@ -300,13 +317,32 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
 
                     _buscarPIS = false;
 
-                    var pis = textoSplitadoPorLinha[linha].Trim().Split(' ')[0].Replace(".", "").Replace("-", "");
+                    try
+                    {
+                        var pis = textoSplitadoPorLinha[linha].Trim().Split(' ').Where(d => d != "").ToArray()[0].Replace(".", "").Replace("-", "");
+                        var sizeSplit = textoSplitadoPorLinha[linha].Trim().Split(' ').Where(d => d != "").ToArray().Length;
+                        var dtAdmissao = textoSplitadoPorLinha[linha].Trim().Split(' ').Where(d => d != "").ToArray()[sizeSplit-2];
 
-                    var colaborador = _repositoryColaborador.ObterColaboradorPorPIS(pis);
+                        var colaborador = _repositoryColaborador.ObterColaboradorPorPISeAdmissao(pis, DateTime.Parse(dtAdmissao));
 
-                    if (colaborador == null) throw new Exception("Colaborador não foi encontrado por PIS");
+                        if (colaborador == null)
+                        {
+                            colaborador = _repositoryColaborador.ObterColaboradorPorPIS(pis);
+                        }
 
-                    ColaboradorCompNaoLocalizada = colaborador;
+                        if (colaborador.Nome == "SERGIO LUIS GHISLERI")
+                        {
+
+                        }
+
+                        ColaboradorCompNaoLocalizada = colaborador;
+                    }
+                    catch (Exception ex)
+                    {
+                        var linhaAtual = textoSplitadoPorLinha[linha];
+                    }
+
+                   
                 }
 
                 //Validou trecho de competência não localizada
@@ -317,7 +353,12 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                 #region TRECHO COMP. NÃO LOCALIZADAS
                 if (_varrerCompNaoLocalizadas && !_varrerExtratoPago)//efetuando leitura no trecho do extrato
                 {
-                    linha++;
+                    
+                    bool ehData = DateTime.TryParse(textoSplitadoPorLinha[linha].Trim().Split(' ').Where(d => d != "").ToArray()[0], out DateTime dtResult);
+
+                    if (ehData) { pularLinha = false; }
+
+                    if (pularLinha) linha++;
 
                     var datas = textoSplitadoPorLinha[linha].Trim().Split(' ').Where(d => d != "");
                     foreach (var data in datas)
@@ -326,22 +367,45 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
 
                         if (isData)
                         {
-                            CompetenciasNaoLocalizadas.Add(new CompNaoLocalizada
+                            var competencia = new CompNaoLocalizada
                             {
                                 PIS = ColaboradorCompNaoLocalizada.PIS,
                                 MesAno = dt,
-                            });
+                                DataAdmissao = ColaboradorCompNaoLocalizada.DataAdmissao
+                            };
+
+                            var _repository = new Dados.RAIS.RAISRepository<CompNaoLocalizada>();
+                            _repository.Add(competencia);
                         }
                         else if (textoSplitadoPorLinha[linha].Trim().Replace(" ", "").StartsWith("Página"))
                         {
                             _varrerCompNaoLocalizadas = true;
                             return;
                         }
-                        else
+                        else if (textoSplitadoPorLinha[linha].Trim().Replace(" ", "").StartsWith("SEMOCORRENCIAS"))
                         {
                             _varrerCompNaoLocalizadas = false;
+
+                            var competencia = new CompNaoLocalizada
+                            {
+                                PIS = ColaboradorCompNaoLocalizada.PIS,
+                                MesAno = null,
+                                Informacao = textoSplitadoPorLinha[linha].Trim(),
+                                DataAdmissao = ColaboradorCompNaoLocalizada.DataAdmissao
+                            };
+
+                            var _repository = new Dados.RAIS.RAISRepository<CompNaoLocalizada>();
+                            _repository.Add(competencia);
+                        }
+                        else
+                        {
+                            if(!textoSplitadoPorLinha[linha + 1].Trim().Replace(" ", "").StartsWith("SEMOCORRENCIAS") &&
+                                !textoSplitadoPorLinha[linha].Trim().Replace(" ", "").StartsWith("COMPETENCIASNAOLOCALIZADAS"))
+                               _varrerCompNaoLocalizadas = false;
                         }
                     }
+
+                    pularLinha = false;
                 }
                 #endregion
 
@@ -365,12 +429,15 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                     {
                         if(DateTime.TryParse(linhaSplit[0], out DateTime dtPago))
                         {
-                            ExtratosFGTS.Add(new ExtratoFGTS 
+                           var extrato = new ExtratoFGTS 
                             { 
                                 Data = dtPago, 
                                 CPF = ColaboradorCompNaoLocalizada.CPF,
                                 Valor = decimal.Parse(linhaSplit[linhaSplit.Length -1]) 
-                            });
+                            };
+
+                            var _repositoryExtrato = new Dados.RAIS.RAISRepository<ExtratoFGTS>();
+                            _repositoryExtrato.Add(extrato);
                         }
                         else
                         {
@@ -379,6 +446,8 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                     }
                 }
             }
+
+            builder = null;
         }
         public void ManipularExtratoFGTS(StringBuilder builder, FileInfo file)
         {
@@ -454,10 +523,6 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                     !_proxPaginaExtratoFGTS)
                 {
 
-                    if (_colaboradorExtratoFGTS.CPF == "056.246.729-77")
-                    {
-
-                    }
                     var trechoSplit = textoSplitadoPorLinha[linha]
                         .Trim()
                         .Split(" ")
@@ -499,13 +564,11 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Rais
                 }
             }
         }
-
-        public void MontarExcel()
+        public async Task<IEnumerable<ArquivoCompletoRAIS>> ObterDadosColaboradoresRAIS()
         {
             var _repository = new Dados.RAIS.Repository();
-            var dados = _repository.ObterDados();
+            return await _repository.ObterDados();
         }
-
         private DateTime IncluiDataConformeDescricao(string descricao, DateTime dt)
         {
             if (descricao.ToUpper().StartsWith("DEPOSITO"))

@@ -50,5 +50,6 @@ namespace ExtratorDados.Domain.Rais.Entities
         public string CPFColaborador { get; set; }
         public DateTime DataPagamento { get; set; }
         public decimal ValorPagamento { get; set; }
+        public DateTime DataAdmissao { get; set; }
     }
 }

@@ -1,3 +1,6 @@
+create or alter procedure sp_RAIS_ObterRelatorio
+AS
+BEGIN
 WITH DADOS AS(
 SELECT distinct
 YEAR(rem.DataPagamento) as Ano,
@@ -5,7 +8,7 @@ Nome,PIS,rais.CPF,
 CONVERT(varchar,rais.DataAdmissao,103) AS DataAdmissao,
 isnull(CONVERT(varchar,DataDesligamento,103),'	') AS DataDesligamento,
 isnull(CONVERT(varchar(3),CodCausaDesligamento),' ') AS CodCausaDeslig,
-CONVERT(varchar(10),MONTH(rem.DataPagamento)) + '/' + CONVERT(varchar(10),YEAR(rem.DataPagamento)) 'Mes/Ano',
+CONVERT(varchar(10),MONTH(rem.DataPagamento)) + '/' + CONVERT(varchar(10),YEAR(rem.DataPagamento)) 'MesAno',
 'CompNaoLocalizada' = 
 CASE WHEN 1 = (SELECT DISTINCT '1' FROM RAIS..CompNaoLocalizada WHERE Ano = YEAR(rem.DataPagamento) 
 AND MesAno = REM.DataPagamento AND PIS = RAIS.PIS) 
@@ -114,13 +117,8 @@ INNER JOIN RAIS..DecimoTerceiroEAviso DECI ON DECI.Ano = RAIS.Ano AND DECI.CPF =
 WHERE DECI.AvisoPrevio > 0 AND ((DECI.DataDesligamento >= '2011-09-01' AND rais.DataDesligamento < '2016-10-01') OR DECI.DataDesligamento is null )
 )
 SELECT 
-ANO,Nome,PIS,CPF,
-CONVERT(date, DataAdmissao, 103) AS DataAdmissao,
-CASE WHEN DataDesligamento IN('','	') THEN null ELSE CONVERT(date, DataDesligamento, 103) END AS DataDesligamento,
-CodCausaDeslig,[Mes/Ano],
-CASE WHEN CompNaoLocalizada IN('','	') THEN '0' ELSE CompNaoLocalizada END AS CompNaoLocalizada,
-CASE WHEN MesesNaoDepositados = 0 THEN null ELSE MesesNaoDepositados END AS MesesNaoDepositados,
-Remuneracao
-FROM DADOS d
+*
+FROM DADOS D
 WHERE NOT exists (SELECT * FROM RAIS..EXCLUSAOCOLABORADOR WHERE trim(Nome) = trim(D.Nome))
 ORDER BY Nome,DataPagamento,ordem
+END

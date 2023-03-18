@@ -36,6 +36,10 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Services
 
                         for (int i = 1; i <= reader.NumberOfPages; i++)
                         {
+                            if (i >= 18)
+                            {
+
+                            }
                             var line = PdfTextExtractor.GetTextFromPage(reader, i);
                             documentText.Append(PdfTextExtractor.GetTextFromPage(reader, i));
                             qtdPaginasLidas++;
@@ -52,6 +56,40 @@ namespace ExtratorDados.CrossCutting.Read.PDF.Services
             }
 
             return documentText;
+        }
+        public string ReadPDF_ToString(string path)
+        {
+            var documentText = new StringBuilder();
+            int qtdPaginasLidas = 0;
+
+            try
+            {
+                if (File.Exists(path))
+                {
+
+                    using (PdfReader reader = new PdfReader(path))
+                    {
+                        var codePages = CodePagesEncodingProvider.Instance;
+                        Encoding.RegisterProvider(codePages);
+
+                        for (int i = 1; i <= reader.NumberOfPages; i++)
+                        {
+                            var line = PdfTextExtractor.GetTextFromPage(reader, i);
+                            documentText.Append(PdfTextExtractor.GetTextFromPage(reader, i));
+                            qtdPaginasLidas++;
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                string erro = $"log_erro_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.txt";
+                using (var writer = new StreamWriter(erro))
+                    writer.Write($"ERRO: Na leitura do arquivo pdf\nPág:{qtdPaginasLidas}\n{ex.Message}");
+            }
+
+            return documentText.ToString();
         }
         public string ReadPDF_UTF8(string fileName)
         {

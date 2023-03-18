@@ -7,7 +7,9 @@ namespace ExtratorDados.Domain.Rais.Entities
     public class CompNaoLocalizada
     {
         public string PIS { get; set; }
-        public DateTime MesAno { get; set; }
+        public DateTime? MesAno { get; set; }
+        public string Informacao { get; set; }
+        public DateTime? DataAdmissao { get; set; }
     }
 
     [Table("dbo.ExtratoFGTS")]

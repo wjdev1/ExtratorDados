@@ -1,3 +1,5 @@
+using ExtratorDados.Application.RAIS;
+using OfficeOpenXml.FormulaParsing.Excel.Functions.DateTime;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -24,10 +26,12 @@ namespace ExtratorDados.RAIS.Tests
         public void LerColaboradorNoArquivoRAIS()
         {
             //Arrange
-            var path = @"C:\Workana\ExtratorDados\tests\resources\RAIS\";
+            var path = @"E:\Development\Workana\temp\RAIS\";
             var service = new CrossCutting.Read.PDF.Rais.RAISLeituraPDFService();
 
             var files = new DirectoryInfo(path).GetFiles();
+
+            //files = files.Where(x => x.Name == "1290_a17397a3-b07a-4d59-9f3f-65731ff016d3.pdf").ToArray();
 
             //Action
             foreach (var file in files)
@@ -38,26 +42,26 @@ namespace ExtratorDados.RAIS.Tests
                 service.ManipularDadosRAISRemuneracao(dados2);
             }
 
-        //    var _repositoryRemuneracao = new CrossCutting.Dados.RAIS.RAISRepository<Domain.Rais.Entities.Remuneracao>();
+            var _repositoryRemuneracao = new CrossCutting.Dados.RAIS.RAISRepository<Domain.Rais.Entities.Remuneracao>();
 
-        //    foreach (var colaborador in service.Colaboradores)
-        //    {
-        //        var _repositoryColaborador = new CrossCutting.Dados.RAIS.RAISRepository<Domain.Rais.Entities.Colaborador>();
-                
-        //        _repositoryColaborador.Add(colaborador);
+            foreach (var colaborador in service.Colaboradores)
+            {
+                //var _repositoryColaborador = new CrossCutting.Dados.RAIS.RAISRepository<Domain.Rais.Entities.Colaborador>();
 
-        //        colaborador.Remuneracoes.ForEach(rem => 
-        //        {
-        //            _repositoryRemuneracao.Add(rem);    
-        //        });
-        //    }
+                //_repositoryColaborador.Add(colaborador);
+
+                colaborador.Remuneracoes.ForEach(rem =>
+                {
+                    _repositoryRemuneracao.Add(rem);
+                });
+            }
         }
 
         [Fact]
         public void LerColaboradorNoArquivoRAISObterDecimoTerceiroEAviso()
         {
             //Arrange
-            var path = @"C:\Workana\ExtratorDados\tests\resources\RAIS\";
+            var path = @"E:\Development\Workana\temp\RAIS\";
             var service = new CrossCutting.Read.PDF.Rais.RAISLeituraPDFService();
 
             var files = new DirectoryInfo(path).GetFiles();
@@ -74,36 +78,37 @@ namespace ExtratorDados.RAIS.Tests
         public void LerCompNaoLocalizadas()
         {
             //Arrange
-            var path = @"C:\Workana\ExtratorDados\tests\resources\COMP_NAO_LOCALIZADAS\";
+            var path = @"E:\Development\Workana\temp\COMP_NAO_LOCALIZADAS\";
             var service = new CrossCutting.Read.PDF.Rais.RAISLeituraPDFService();
 
             var files = new DirectoryInfo(path).GetFiles().OrderBy(o => int.Parse(Regex.Match(o.FullName, @"\d+").Value)).ToList();
 
+            //files = files.Where(x => x.FullName.EndsWith("302.pdf") || x.FullName.EndsWith("303.pdf")).ToList();
+
+            FileInfo _fileTemp = null;
+
             //Action
-            foreach (var file in files)
+            try
             {
-                var dados = service.ReadPDF(file.FullName);
-                service.ManipularCompNaoLocalizadas(dados);
+                foreach (var file in files)
+                {
+                    _fileTemp = file;
+                    //Thread.Sleep(1000);
+                    var dados = service.ReadPDF_ToString(file.FullName);
+                    service.ManipularCompNaoLocalizadas(dados, file);
+                }
             }
-
-            //service.CompetenciasNaoLocalizadas.ForEach(comp => 
-            //{
-            //    var _repository = new CrossCutting.Dados.RAIS.RAISRepository<Domain.Rais.Entities.CompNaoLocalizada>();
-            //    _repository.Add(comp);
-            //});
-
-            //service.ExtratosFGTS.ForEach(extrato => 
-            //{
-            //    var _repository = new CrossCutting.Dados.RAIS.RAISRepository<Domain.Rais.Entities.ExtratoFGTS>();
-            //    _repository.Add(extrato);   
-            //});
+            catch (System.Exception ex)
+            {
+                var arquivo = _fileTemp;
+            }
         }
 
         [Fact]
         public void LerExtratoPagamento()
         {
             //Arrange
-            var path = @"C:\Workana\ExtratorDados\tests\resources\EXTRATOS_DEPOSITOS\";
+            var path = @"E:\Development\Workana\temp\EXTRATOS_DEPOSITOS\";
             var service = new CrossCutting.Read.PDF.Rais.RAISLeituraPDFService();
 
             var files = new DirectoryInfo(path)
@@ -162,20 +167,9 @@ namespace ExtratorDados.RAIS.Tests
         }
 
         [Fact]
-        public async void ServicoRAIS()
+        public async void GerarArquivoCSV()
         {
-            var pathRAIS = @"C:\Workana\ExtratorDados\tests\resources\RAIS\";
-            var pathExtratos = @"C:\Workana\ExtratorDados\tests\resources\COMP_NAO_LOCALIZADAS\";
-
-            var service = new Application.RAIS.RAISService();
-            await service.Processar(pathRAIS, pathExtratos);
-
-            var arquivo = new Domain.Rais.Entities.ArquivoCompletoRAIS();
-        }
-
-        private void ReadPDFService__onNotificar(string mensagem, decimal? progress, bool progressBar, bool error = false)
-        {
-
+            await new RAISService().GerarArquivoCSV();
         }
     }
 }
